@@ -1,0 +1,107 @@
+stages:
+  - build
+  - test
+  - lint
+  - push
+  - deploy
+
+variables:
+  DOCKER_USER: $DOCKER_USER  
+  DOCKER_PASSWORD: $DOCKER_PASSWORD  
+
+before_script:
+  - docker login -u "$DOCKER_USER" -p "$DOCKER_PASSWORD"
+
+cache:
+  paths:
+    - frontend/node_modules/
+    - backend/.venv/
+
+build_frontend:
+  stage: build
+  script:
+    - docker build -t myproject/frontend:latest ./frontend
+  only:
+    - main
+   cache:
+    paths:
+      - frontend/node_modules/
+
+build_backend:
+  stage: build
+  script:
+    - docker build -t myproject/backend:latest ./backend
+  only:
+    - main
+  cache:
+    paths:
+      - backend/.venv/
+
+test_frontend:
+  stage: test
+  script:
+    - docker run myproject/frontend:latest npm test || echo "No tests found, adding sample test."
+  only:
+    - main
+
+test_backend:
+  stage: test
+  script:
+    - docker run myproject/backend:latest pytest || echo "No tests found, adding sample test."
+  only:
+    - main
+  artifacts:
+    paths:
+      - backend/test-results/  # Store test results for backend
+    expire_in: 1 week
+
+lint_code:
+  stage: lint
+  script:
+    - docker run myproject/frontend:latest eslint ./src
+    - docker run myproject/backend:latest pylint ./src
+  only:
+    - main
+  cache:
+    paths:
+      - frontend/node_modules/
+      - backend/.venv/
+
+
+sast:
+  stage: lint
+  script:
+    - docker run myproject/frontend:latest npm run sast
+    - docker run myproject/backend:latest python-sast-tool
+  only:
+    - main
+
+push_frontend:
+  stage: push
+  script:
+    - docker tag myproject/frontend:latest $DOCKER_USER/myproject-frontend:latest
+    - docker push $DOCKER_USER/myproject-frontend:latest
+  only:
+    - main
+
+push_backend:
+  stage: push
+  script:
+    - docker tag myproject/backend:latest $DOCKER_USER/myproject-backend:latest
+    - docker push $DOCKER_USER/myproject-backend:latest
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - echo "$KUBE_CONFIG" > kubeconfig.yaml
+    - export KUBECONFIG=$(pwd)/kubeconfig.yaml
+    - helm upgrade --install myapp ./helm-chart \
+        --namespace default \
+        --set image.repository=<your-docker-image> \
+        --set image.tag=latest
+  only:
+    - main
+

@@ -1,0 +1,34 @@
+replicaCount: 2  # Number of replicas for each service
+
+image:
+  frontend:
+    repository: myrepo/frontend
+    tag: "latest"
+  backend:
+    repository: myrepo/backend
+    tag: "latest"
+  socket:
+    repository: myrepo/socket
+    tag: "latest"
+  mongodb:
+    repository: mongo
+    tag: "5.0"
+
+service:
+  type: ClusterIP  # Service type for internal access, can be changed to LoadBalancer for external access
+  port: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: my-app.local
+      paths:
+        - /
+  tls: []  # Add TLS certs here for HTTPS (optional)
+
+rbac:
+  enabled: disable  # Enable or disable RBAC

@@ -1,0 +1,7 @@
+networking:
+  ingress:
+    enabled: true     # Enable this for Ingress
+    host: myapp.local
+  istio:
+    enabled: false    # Enable this for Istio
+    host: myapp.local
